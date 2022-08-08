@@ -228,10 +228,17 @@ class RuleBasedPlayer(KnowledgeEngine):
     def getAction(self):
         return self.action
 
-    @Rule(AND(Fact(timeEnter=P(lambda x: x < 8)),
+    @Rule(AND(Fact(timeEnter=P(lambda x: x < 11 and x > 8)),
               Fact(obHeight=P(lambda x: x < 60)),
               NOT(Fact(dinoHeight=P(lambda x: x < 330)))))
     def jump(self):
+           self.retract(1)
+           self.declare(Fact(action='K_UP'))
+
+    @Rule(AND(Fact(timeEnter2=P(lambda x: x < 11 and x > 8)),     # colisão proxima
+              Fact(obHeight2=P(lambda x: x < 60)),                # o segundo obj esta baixo
+              Fact(dinoHeight=P(lambda x: x < 200))))             # dino esta no alto
+    def continueJump(self):
            self.retract(1)
            self.declare(Fact(action='K_UP'))
 
@@ -240,11 +247,12 @@ class RuleBasedPlayer(KnowledgeEngine):
            self.retract(1)
            self.declare(Fact(action='K_DOWN'))
 
-    @Rule(AND(Fact(timeLeave=P(lambda x: x < 2)),
-              Fact(dinoHeight=P(lambda x: x < 330)), 
-              OR(NOT(Fact(time2=P(lambda x: x < 10))),
-                  Fact(obHeight2=P(lambda x: x > 60)))))
+    @Rule(AND(Fact(timeLeave=P(lambda x: x < 5)),               # já esta saindo
+              Fact(dinoHeight=P(lambda x: x < 330)),            # dino esta no alto
+              OR(Fact(timeEnter2=P(lambda x: x >= 11)),     # não esta proximo do outro
+                  Fact(obHeight2=P(lambda x: x > 60)))))        # ou prox esta no alto
     def getDownFast(self): 
+           print("entrou")
            self.retract(1)
            self.declare(Fact(action='K_DOWN'))
 
@@ -256,26 +264,32 @@ class RuleBasedKeyClassifier(KeyClassifier):
     def __init__(self):
         self.engine = RuleBasedPlayer()
 
-    def keySelector(self, obDistance, obHeight, scSpeed, obWidth, diHeight, obDistance2, obHeight2, obWidth2):    
+    def keySelector(self, obDistance, obHeight, scSpeed, obWidth, diHeight, obDistance2, obHeight2, obWidth2, dinoWidth, dinoDistance):   
+        timeEnter=(obDistance-dinoDistance-dinoWidth/2)/scSpeed
+        timeLeave=(obDistance+obWidth-dinoDistance-dinoWidth/2)/scSpeed
+        timeEnter2=(obDistance2-dinoDistance-dinoWidth/2)/scSpeed
+        timeLeave2=(obDistance2+obWidth2-dinoDistance-dinoWidth/2)/scSpeed
+        print([diHeight, obHeight, obWidth, timeEnter, timeLeave, timeEnter2, timeLeave2, obHeight2]) 
         self.engine.reset()
         self.engine.declare(Fact(action='K_NO'))
         self.engine.declare(Fact(distance=obDistance-obWidth))
         self.engine.declare(Fact(obHeight=obHeight))
         self.engine.declare(Fact(speed=scSpeed))
         self.engine.declare(Fact(obWidth=obWidth))
-        timeEnter=(obDistance-2*obWidth)/scSpeed
-        timeLeave=(obDistance+2*obWidth)/scSpeed
+        
         self.engine.declare(Fact(timeEnter=timeEnter))
         self.engine.declare(Fact(timeLeave=timeLeave))
         self.engine.declare(Fact(dinoHeight=diHeight))
         self.engine.declare(Fact(distance2=obDistance2))
         self.engine.declare(Fact(obHeight2=obHeight2))
-        self.engine.declare(Fact(time2=obDistance2/scSpeed-11.1))
+        
+        self.engine.declare(Fact(timeEnter2=timeEnter2))
+        self.engine.declare(Fact(timeLeave2=timeLeave2))
         self.engine.declare(Fact(obWidth2=obWidth2))
         self.engine.run()
         #TimeEnter - 11.4
         #TimeLeave - X
-        print([obDistance-2*obWidth, obWidth, timeEnter, timeLeave, obHeight, diHeight])
+        
         return self.engine.getAction()
 
 def playerKeySelector():
@@ -357,8 +371,8 @@ def playGame():
         if GAME_MODE == "HUMAN_MODE":
             userInput = playerKeySelector()
         else:
-            userInput = aiPlayer.keySelector(obDistance, obHeight, game_speed, obWidth, player.getXY()[1], obDistance2, obHeight2, obWidth2)
-
+            userInput = aiPlayer.keySelector(obDistance, obHeight, game_speed, obWidth, player.getXY()[1], obDistance2, obHeight2, obWidth2, player.dino_rect[2], player.dino_rect[0])
+        
         if len(obstacles) == 0 or obstacles[-1].getXY()[0] < spawn_dist:
             spawn_dist = random.randint(0, 670)
             if random.randint(0, 2) == 0:
@@ -385,10 +399,10 @@ def playGame():
 
         score()
         if GRAPH:
-            if obDistance > 200:
-                clock.tick(60)
-            else :
-                clock.tick(1)
+            #if obDistance < 200:
+            #    clock.tick(5)
+            #else:
+            #    clock.tick(60)
         
             pygame.display.update()
 
