@@ -248,13 +248,12 @@ class RuleBasedPlayer(KnowledgeEngine):
            self.declare(Fact(action='K_DOWN'))
 
     @Rule(AND(Fact(timeLeave=P(lambda x: x < 5)),               # já esta saindo
-              Fact(dinoHeight=P(lambda x: x < 330)),            # dino esta no alto
-              OR(Fact(timeEnter2=P(lambda x: x >= 11)),     # não esta proximo do outro
-                  Fact(obHeight2=P(lambda x: x > 60)))))        # ou prox esta no alto
+              Fact(dinoHeight=P(lambda x: x < 330))))            # dino esta no alto
+
     def getDownFast(self): 
-           print("entrou")
            self.retract(1)
            self.declare(Fact(action='K_DOWN'))
+
 
     @Rule(Fact(action=MATCH.action))
     def selectAction(self, action):
