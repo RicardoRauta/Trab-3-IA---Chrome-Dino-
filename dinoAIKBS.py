@@ -4,6 +4,10 @@ import random
 import time
 from sys import exit
 from experta import *
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+import numpy as np
 
 pygame.init()
 
@@ -220,7 +224,7 @@ def first(x):
 """
 
 
-class RuleBasedPlayer(KnowledgeEngine):
+class RicRuleBasedPlayer(KnowledgeEngine):
 
     def setAction(self, action):
         self.action = action
@@ -249,26 +253,24 @@ class RuleBasedPlayer(KnowledgeEngine):
 
     @Rule(AND(Fact(timeLeave=P(lambda x: x < 5)),               # já esta saindo
               Fact(dinoHeight=P(lambda x: x < 330))))            # dino esta no alto
-
     def getDownFast(self): 
            self.retract(1)
            self.declare(Fact(action='K_DOWN'))
-
 
     @Rule(Fact(action=MATCH.action))
     def selectAction(self, action):
         self.setAction(action)
 
-class RuleBasedKeyClassifier(KeyClassifier):
+class RicRuleBasedKeyClassifier(KeyClassifier):
     def __init__(self):
-        self.engine = RuleBasedPlayer()
+        self.engine = RicRuleBasedPlayer()
 
     def keySelector(self, obDistance, obHeight, scSpeed, obWidth, diHeight, obDistance2, obHeight2, obWidth2, dinoWidth, dinoDistance):   
         timeEnter=(obDistance-dinoDistance-dinoWidth/2)/scSpeed
         timeLeave=(obDistance+obWidth-dinoDistance-dinoWidth/2)/scSpeed
         timeEnter2=(obDistance2-dinoDistance-dinoWidth/2)/scSpeed
         timeLeave2=(obDistance2+obWidth2-dinoDistance-dinoWidth/2)/scSpeed
-        print([diHeight, obHeight, obWidth, timeEnter, timeLeave, timeEnter2, timeLeave2, obHeight2]) 
+        #print([diHeight, obHeight, obWidth, timeEnter, timeLeave, timeEnter2, timeLeave2, obHeight2]) 
         self.engine.reset()
         self.engine.declare(Fact(action='K_NO'))
         self.engine.declare(Fact(distance=obDistance-obWidth))
@@ -289,6 +291,59 @@ class RuleBasedKeyClassifier(KeyClassifier):
         #TimeEnter - 11.4
         #TimeLeave - X
         
+        return self.engine.getAction()
+
+class RuleBasedPlayer(KnowledgeEngine):
+
+    def setAction(self, action):
+        self.action = action
+
+    def getAction(self):
+        return self.action
+
+    @Rule(AND(Fact(speed=P(lambda x: x < 15)),
+              Fact(distance=P(lambda x: x < 300)),
+              NOT(Fact(action='K_DOWN'))))   
+    def jumpSlow(self):
+           self.retract(1)
+           self.declare(Fact(action='K_UP'))
+ 
+    @Rule(AND(Fact(speed=P(lambda x: x >= 15 and x < 17)),
+              Fact(distance=P(lambda x: x < 400)),
+              NOT(Fact(action='K_DOWN'))))   
+    def jumpFast(self):
+           self.retract(1)
+           self.declare(Fact(action='K_UP'))
+
+    @Rule(AND(Fact(speed=P(lambda x: x >= 17)),
+              Fact(distance=P(lambda x: x < 500)),
+              NOT(Fact(action='K_DOWN'))))   
+    def jumpVeryFast(self):
+           self.retract(1)
+           self.declare(Fact(action='K_UP'))
+
+    @Rule(AND(Fact(obType=P(lambda x: isinstance(x, Bird))),
+              Fact(obHeight=P(lambda x: x > 50))))   
+    def getDown(self): 
+           self.retract(1)
+           self.declare(Fact(action='K_DOWN'))
+
+    @Rule(Fact(action=MATCH.action))
+    def selectAction(self, action):
+        self.setAction(action)
+
+class RuleBasedKeyClassifier(KeyClassifier):
+    def __init__(self):
+        self.engine = RuleBasedPlayer()
+
+    def keySelector(self, dist, obH, sp, obT):    
+        self.engine.reset()
+        self.engine.declare(Fact(action='K_NO'))
+        self.engine.declare(Fact(distance=dist))
+        self.engine.declare(Fact(obHeight=obH))
+        self.engine.declare(Fact(speed=sp))
+        self.engine.declare(Fact(obType=obT))
+        self.engine.run()
         return self.engine.getAction()
 
 def playerKeySelector():
@@ -371,7 +426,7 @@ def playGame():
             userInput = playerKeySelector()
         else:
             userInput = aiPlayer.keySelector(obDistance, obHeight, game_speed, obWidth, player.getXY()[1], obDistance2, obHeight2, obWidth2, player.dino_rect[2], player.dino_rect[0])
-        
+            #userInput = aiPlayer.keySelector(obDistance, obHeight, game_speed, obType)
         if len(obstacles) == 0 or obstacles[-1].getXY()[0] < spawn_dist:
             spawn_dist = random.randint(0, 670)
             if random.randint(0, 2) == 0:
@@ -415,9 +470,37 @@ def playGame():
 def main():
     global aiPlayer
 
-    aiPlayer = RuleBasedKeyClassifier()
+    aiPlayer = RicRuleBasedKeyClassifier()
     print (playGame())
 
+def manyPlaysResults(rounds):
+    results = []
+    for round in range(rounds):
+        results += [playGame()]
+    npResults = np.asarray(results)
+    return (results, npResults.mean() - npResults.std())
 
-main()
+def testValue():
+    global aiPlayer
+    aiPlayer = RuleBasedKeyClassifier()
+    res, value = manyPlaysResults(30)
+    npRes = np.asarray(res)
+    print(res, npRes.mean(), npRes.std(), value)
 
+def printBoxplot():
+    NeuralResult = [2116.75, 2147.0, 2053.25, 1863.5, 2105.75, 2016.75, 2007.5, 2120.75, 1905.75, 1808.25, 2118.0, 2091.0, 2004.75, 2136.0, 2012.75, 1862.25, 1997.75, 1843.5, 2105.0, 1801.0, 2006.25, 1975.0, 1901.25, 1906.75, 1906.5, 1907.0, 2190.0, 2013.5, 1906.5, 2105.0]
+    ProfKeySelector = [844.75, 58.75, 1407.5, 108.75, 207.25, 1090.5, 1180.0, 1071.75, 152.25, 1061.75, 1471.75, 1108.75, 37.75, 1297.0, 1201.5, 1232.75, 861.75, 1385.0, 1045.0, 58.5, 1320.25, 1322.25, 1223.25, 166.5, 177.75, 37.0, 37.25, 36.5, 190.25, 57.5]
+    RicKeySelector = [2114.75, 1943.5, 1923.25, 2039.75, 2007.75, 1708.5, 1962.25, 1990.25, 2021.0, 1703.75, 2010.75, 1958.0, 1871.75, 1755.0, 1985.5, 1933.5, 1995.0, 1740.0, 1826.25, 1890.5, 1809.25, 2181.75, 1982.25, 1699.75, 1916.5, 2054.0, 1862.0, 2006.5, 1800.5, 1834.75]
+
+    dataFrame = np.array([NeuralResult, ProfKeySelector, RicKeySelector])
+    df = pd.DataFrame(data=dataFrame.transpose(), columns=["Rede Neural", "ProfKeySelector", "RicKeySelector"])
+
+    sns.boxplot(data=df)
+    plt.show()
+
+#main()
+#printBoxplot()
+testValue()
+
+# RicKey  [2114.75, 1943.5, 1923.25, 2039.75, 2007.75, 1708.5, 1962.25, 1990.25, 2021.0, 1703.75, 2010.75, 1958.0, 1871.75, 1755.0, 1985.5, 1933.5, 1995.0, 1740.0, 1826.25, 1890.5, 1809.25, 2181.75, 1982.25, 1699.75, 1916.5, 2054.0, 1862.0, 2006.5, 1800.5, 1834.75] 1917.6083333333333 121.61302499001584 1795.9953083433174
+# ProfKey [844.75, 58.75, 1407.5, 108.75, 207.25, 1090.5, 1180.0, 1071.75, 152.25, 1061.75, 1471.75, 1108.75, 37.75, 1297.0, 1201.5, 1232.75, 861.75, 1385.0, 1045.0, 58.5, 1320.25, 1322.25, 1223.25, 166.5, 177.75, 37.0, 37.25, 36.5, 190.25, 57.5] 715.05 553.2915988277188 161.7584011722812
