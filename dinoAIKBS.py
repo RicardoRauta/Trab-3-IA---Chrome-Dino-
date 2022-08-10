@@ -425,8 +425,8 @@ def playGame():
         if GAME_MODE == "HUMAN_MODE":
             userInput = playerKeySelector()
         else:
-            #userInput = aiPlayer.keySelector(obDistance, obHeight, game_speed, obWidth, player.getXY()[1], obDistance2, obHeight2, obWidth2, player.dino_rect[2], player.dino_rect[0])
-            userInput = aiPlayer.keySelector(obDistance, obHeight, game_speed, obType)
+            userInput = aiPlayer.keySelector(obDistance, obHeight, game_speed, obWidth, player.getXY()[1], obDistance2, obHeight2, obWidth2, player.dino_rect[2], player.dino_rect[0])
+            #userInput = aiPlayer.keySelector(obDistance, obHeight, game_speed, obType)
         if len(obstacles) == 0 or obstacles[-1].getXY()[0] < spawn_dist:
             spawn_dist = random.randint(0, 670)
             if random.randint(0, 2) == 0:
@@ -456,7 +456,7 @@ def playGame():
             #if obDistance < 200:
             #    clock.tick(5)
             #else:
-            #    clock.tick(60)
+            clock.tick(60)
         
             pygame.display.update()
 
